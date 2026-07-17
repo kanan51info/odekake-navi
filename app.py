@@ -60,7 +60,7 @@ elif char_choice == "宇随天元":
 st.sidebar.markdown("---")
 st.sidebar.header("旅行計画入力")
 
-# 出発地点の設定（新規追加項目）
+# 出発地点の設定
 departure = st.sidebar.text_input("出発地点", placeholder="例:駅、空港、市役所など")
 
 # 出発日の設定 (デフォルトは今日)
@@ -68,12 +68,12 @@ start_date = st.sidebar.date_input("出発日", value=date.today())
 
 # 交通機関情報(複数選択可)
 transport_options = ["自動車", "バス", "電車", "飛行機"]
-selected_transports = st.sidebar.multiselect("交通機関（複数選択可）", options=transport_options, default=["自動車"])
+selected_transports = st.sidebar.multiselect("交通機関(複数選択可)", options=transport_options, default=["自動車"])
 
 # プラン
-trip_plan = st.sidebar.text_input("プラン（日帰り6時間、1泊2日等）", value="日帰り")
+trip_plan = st.sidebar.text_input("プラン (日帰り6時間、1泊2日等)", value="日帰り")
 
-# 目的地の場所/名称
+# 目的地の実地/名称
 destination = st.sidebar.text_input("目的地の場所/名称", placeholder="例:宿泊施設、レジャーランドなど")
 
 # 寄り道/経由地
@@ -98,10 +98,10 @@ else:
 if not api_key:
     st.warning("Groq の API キーが設定されていません。")
     st.stop()
+
 client = Groq(api_key=api_key)
 
-
-# ---4. 画像圧縮用関数
+# --- 4. 画像圧縮用関数
 def compress_image(uploaded_file, max_size=(300, 300), quality=50):
     image = Image.open(uploaded_file)
     if image.mode in ("RGBA", "P"):
@@ -110,7 +110,6 @@ def compress_image(uploaded_file, max_size=(300, 300), quality=50):
     buffer = io.BytesIO()
     image.save(buffer, format="JPEG", quality=quality)
     return base64.b64encode(buffer.getvalue()).decode("utf-8")
-
 
 # --- 5. チャット履歴の管理と表示
 if "messages" not in st.session_state:
@@ -131,12 +130,15 @@ is_cooling_down = time_passed < COOL_DOWN_SECONDS
 
 if is_cooling_down:
     remaining_time = int(COOL_DOWN_SECONDS - time_passed)
-    st.error(f"連続エラーによる API 負荷を防を防ぐためロック中です。あと {remaining_time} 秒お待ちください。")
+    st.error(f"連続エラーによる API 負荷を防ぐためロック中です。あと {remaining_time} 秒お待ちください。")
     time.sleep(1)
     st.rerun()
 
 # ユーザーからの新規入力
-uploaded_file = st.file_uploader("旅のしおりや現地写真、きっぷなどの画像があればアップロードしてください (任意)", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader(
+    "旅のしおりや現地写真、きっぷなどの画像があればアップロードしてください (任意)", 
+    type=["jpg", "jpeg", "png"]
+)
 user_input = st.chat_input("旅行プランの相談、トラブル発生時の代替ルート、ご当地グルメなどについて何でも聞いてください!")
 
 # 入力処理
@@ -145,13 +147,17 @@ if user_input or (uploaded_file is not None and not st.session_state.get("image_
     st.session_state.messages.append({"role": "user", "content": user_text})
     with st.chat_message("user"):
         st.markdown(user_text)
+
     if uploaded_file is not None:
         st.image(uploaded_file, caption="アップロード画像", width=300)
 
-    # APIへのシステムプロンプト (出発地点とアナウンス指示を追加)
+    # APIへのシステムプロンプト (トークン削減・具体性向上のための特別命令を追加)
     system_prompt = f"""
 あなたは「日本一のツアーコンサルタント」かつ「日本一の防災情報ジャーナリスト」であり、旅と防災の世界一優秀なコンシェルジュです。
-旅をより快適で豊かにするため、ユーザーが求める 【具体的な情報】をできる限り詳細に、分かりやすくアナウンスしてください。
+
+【超重要：トークン節約＆ピンポイント回答指示】
+・ユーザーから特定の「質問・相談」が投げかけられた場合、**その質問に直接関係する回答のみ**を簡潔かつ深く出力してください。
+・「今回は全体プランを教えて」などの全体要請がない限り、質問に関係のない「ルート案内」「お勧めSA」「気象リンク」などの定型項目は**絶対に表示しないでください**。これにより無駄なトークン消費を徹底的に抑えます。
 
 【超重要:キャラクターの完全憑依指示】
 あなたの人格は完全に以下のキャラクターに上書きされています。その性格、口調、口癖を文中にふんだんに取り入れて回答してください。
@@ -160,44 +166,39 @@ if user_input or (uploaded_file is not None and not st.session_state.get("image_
 {char_instructions}
 
 【厳守すべきルール・AIへの指示】
-1.【重要】不確実な最新の数値(本日時点のリアルタイムな運行遅延時間や、秒単位で変わるリアルタイム空席状況)は「要確認」として公式への動線を引いてください。ただし、それ以外の「通常料金の目安」「主要な乗り換えパターン」 「よく使われる割引きっぷ・お得なフリーパス名」 「現地の名物・イベント」などは省略せず、具体名や具体的な金額の目安 (例:○○フリーパス: 大人約4,000円など)を必ず調査・算出して具体的に表示してください。
-2. 以下の旅行情報を前提として回答を組み立ててください。
-- 出発地点: {departure if departure else '未定（最適な出発地を想定・提案してください）'}
-- 出発日: {start_date}
-- 帰宅予定日: {end_date}
-- 交通機関: {', '.join(selected_transports)}
-- プラン: {trip_plan}
-- 目的地: {destination if destination else '未定(提案を求めています)'}
-- 寄り道/経由地: {waypoints if waypoints else '特になし'}
-
-3. 【出発地点と乗り換えアナウンスの重要指示】
-出発地点から目的地（および経由地）までの具体的な乗り換えルートを提示してください。
-ルート案内において、**「駅」が登場する場合は「乗り場」や「番線」まで**（例: ○○駅○番線、○○線のりば）、**「空港」が登場する場合は「ターミナル」まで**（例: ○○空港 第○ターミナル）を必ず含めて具体的にアナウンスしてください。
-
-4. ユーザーから「事故」 「遅延」「天候不良」などの相談があった場合は、優しく励ましながら、具体的な代替ルートや役立つ連絡先 (例: 宿の遅延連絡)を提示してください。
-5. 交通機関に「自動車」または「バス」が含まれる場合、道中のおすすめサービスエリア (SA)や道の駅の「具体的な施設名」や「そこで食べるべきおすすめグルメ」を必ず盛り込んでください。
-6. 天災等のライフライン情報を検知した場合は、必ず冒頭に 【緊急速報】 とデカデカと赤文字 (マークダウンのHTML 表記等) で表示してください。
-7. 出力結果は、要点を箇条書きで、項目ごとに分かりやすく整理してください。
-
-【出力に必ず盛り込むべき項目】
-・おすすめの具体的な乗り換えルート候補・所要時間・交通費の目安
-・具体的なお得情報・キャンペーン (例: 『青春18きっぷ』や、地域限定『○○周遊きっぷ』、宿の早期割引のコツなど)
-・最新の気象・交通情報を自分で確認するための「公式リンク名(JR、道路交通情報センター等)」 や 「検索キーワード」の案内
-・ご当地情報(おすすめ観光スポット、滞在期間中のイベント、定番・人気のお土産、名物グルメ)
+1. **【最重要】固有名詞・数値を徹底的に具体化すること。**
+   抽象的な表現（例：「地元の名物グルメ」「お得なきっぷ」「季節のイベント」など）は**禁止**します。必ず以下のように具体名を出してください。
+   - **グルメ・お土産**: 「店舗名：〇〇屋の『〇〇うどん（価格）』」「〇〇洋菓子店の『〇〇シュークリーム』」のように、店舗名と商品名をセットで特定。
+   - **お得情報・キャンペーン**: 「〇〇日帰り周遊パス（大人：〇〇円）」「〇〇ホテル早期割引30（15%オフ）」のように具体的なキャンペーン名や価格を提示。
+   - **イベント**: 「第〇回 〇〇祭り」「〇〇寺 秋の特別拝観（期間：〇/〇〜〇/〇）」など正式名称を提示。
+2. 不確実な最新の数値(リアルタイムな運行遅延時間など)は「要確認」として公式への動線を引いてください。それ以外の定番情報や通常料金は具体的に算出してください。
+3. 以下の旅行情報を前提として回答を組み立ててください。
+   - 出発地点:{departure if departure else '未定(最適な出発地を想定・提案してください)'}
+   - 出発日:{start_date}
+   - 帰宅予定日:{end_date}
+   - 交通機関: {', '.join(selected_transports)}
+   - プラン: {trip_plan}
+   - 目的地:{destination if destination else '未定(提案を求めています)'}
+   - 寄り道/経由地: {waypoints if waypoints else '特になし'}
+4. 【出発地点と乗り換えアナウンスの重要指示】（必要時のみ回答）
+   出発地点から目的地までの乗り換えルート案内において、駅が登場する場合は「乗り場」や「番線」まで（例：〇〇駅〇番線）、空港が登場する場合は「ターミナル」まで（例：〇〇空港 第〇ターミナル）を必ず含めて具体的にアナウンスしてください。
+5. 交通機関に「自動車」または「バス」が含まれる場合（かつ道中案内の必要時のみ）、道中のおすすめサービスエリア(SA)や道の駅の「具体的な施設名」や「そこで食べるべきおすすめグルメ（店名・メニュー）」を必ず盛り込んでください。
+6. 天災等のライフライン情報を検知した場合は、必ず冒頭に 【緊急速報】 とデカデカと赤文字 (マークダウンのHTML 表記等)で表示してください。
+7. 出力結果は、要点を箇条書き等で分かりやすく整理し、冗長な挨拶や前置きは極限まで削ってください。
 """
 
     # ユーザーメッセージの構築
     user_content = []
     base_info = f"""
 [現在の旅程・条件]
-出発地点: {departure}
-出発日: {start_date}
-帰宅日: {end_date}
+出発地点:{departure}
+出発日:{start_date}
+帰宅日:{end_date}
 移動手段: {', '.join(selected_transports)}
 プラン: {trip_plan}
-目的地: {destination}
-経由地: {waypoints}
-質問・状況: {user_text}
+目的地:{destination}
+経由地:{waypoints}
+質問・状況:{user_text}
 """
     user_content.append({"type": "text", "text": base_info})
 
@@ -221,12 +222,12 @@ if user_input or (uploaded_file is not None and not st.session_state.get("image_
                         {"role": "user", "content": user_content}
                     ],
                     temperature=0.7,
-                    max_tokens=1500  # 具体的な情報を増やすため、少し上限を増やしています
+                    max_tokens=1500
                 )
                 result_text = response.choices[0].message.content
 
                 # キーワードの赤文字強調
-                alert_keywords = ["大雨", "雷", "暴風", "台風", "積雪", "地震", "津流", "停電", "断水", "【緊急速報】"]
+                alert_keywords = ["大雨", "雷", "暴風", "台風", "積雪", "地震", "津波", "停電", "断水", "【緊急速報】"]
                 formatted_text = result_text
                 for kw in alert_keywords:
                     if kw in formatted_text:
@@ -247,10 +248,11 @@ if user_input or (uploaded_file is not None and not st.session_state.get("image_
 
 st.markdown("### 旅の安全・防災ガイド")
 st.warning("""
-【重要】天災・ライフラインのトラブルについて**
+【重要】天災・ライフラインのトラブルについて
 * 天候急変(大雨、落雷、暴風、積雪等)や、地震などの災害情報が発生した場合は、速やかにハザードマップを確認し、現地の避難誘導に従ってください。
 * 各交通機関の正確なリアルタイム運行情報は、必ず運行会社公式ページや各自治体窓口の発表をご確認ください。
 """)
+
 st.warning("""
 **ご利用時のパケット・通信料に関する注意点**
 * ご利用に伴う通信料は全額自己負担となります。安定したWi-Fi環境等でのご利用を推奨します。
