@@ -68,10 +68,10 @@ start_date = st.sidebar.date_input("出発日", value=date.today())
 
 # 交通機関情報(複数選択可)
 transport_options = ["自動車", "バス", "電車", "飛行機"]
-selected_transports = st.sidebar.multiselect("交通機関(複数選択可)", options=transport_options, default=["電車"])
+selected_transports = st.sidebar.multiselect("交通機関（複数選択可）", options=transport_options, default=["自動車"])
 
 # プラン
-trip_plan = st.sidebar.text_input("プラン", value="1泊2日")
+trip_plan = st.sidebar.text_input("プラン（日帰り6時間、1泊2日等）", value="日帰り")
 
 # 目的地の場所/名称
 destination = st.sidebar.text_input("目的地の場所/名称", placeholder="例:箱根温泉、清水寺")
