@@ -61,7 +61,7 @@ st.sidebar.markdown("---")
 st.sidebar.header("旅行計画入力")
 
 # 出発地点の設定（新規追加項目）
-departure = st.sidebar.text_input("出発地点", placeholder="例:東京駅、羽田空港、自宅")
+departure = st.sidebar.text_input("出発地点", placeholder="例:駅、空港、市役所など")
 
 # 出発日の設定 (デフォルトは今日)
 start_date = st.sidebar.date_input("出発日", value=date.today())
@@ -74,10 +74,10 @@ selected_transports = st.sidebar.multiselect("交通機関（複数選択可）"
 trip_plan = st.sidebar.text_input("プラン（日帰り6時間、1泊2日等）", value="日帰り")
 
 # 目的地の場所/名称
-destination = st.sidebar.text_input("目的地の場所/名称", placeholder="例:箱根温泉、清水寺")
+destination = st.sidebar.text_input("目的地の場所/名称", placeholder="例:宿泊施設、レジャーランドなど")
 
 # 寄り道/経由地
-waypoints = st.sidebar.text_input("寄り道/経由地", placeholder="例:海老名SA、小田原城")
+waypoints = st.sidebar.text_input("寄り道/経由地", placeholder="例:美術館、博物館など")
 
 # 帰宅予定日
 default_end_date = start_date
