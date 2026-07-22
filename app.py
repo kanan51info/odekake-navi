@@ -15,7 +15,7 @@ st.title("おでかけ Navi")
 st.caption("旅プラン、ご当地情報から防災情報まで、安心の旅情報をご案内します。")
 
 # --- 使用する Groq 最新モデルの設定 ---
-TEXT_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+TEXT_MODEL = "llama-3.2-11b-vision-preview"
 
 # --- 2. サイドバー設定 ---
 st.sidebar.header("コンシェルジュ設定")
